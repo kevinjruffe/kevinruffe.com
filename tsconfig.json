@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "outDir": "generator/built",
+    "module": "esnext"
+  },
+  "extends": "@tsconfig/node16/tsconfig.json",
+  "include": ["generator/src/**/*"]
+}

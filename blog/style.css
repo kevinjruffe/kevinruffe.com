@@ -1,0 +1,454 @@
+/* kanit-200 - latin */
+@font-face {
+  font-family: "Kanit";
+  font-style: normal;
+  font-weight: 200;
+  font-display: block;
+  src: local("Kanit ExtraLight"),
+    url("/public/fonts/kanit-v12-latin-200.woff2") format("woff2"),
+    /* Chrome 26+, Opera 23+, Firefox 39+ */
+      url("/public/fonts/kanit-v12-latin-200.woff") format("woff"); /* Chrome 6+, Firefox 3.6+, IE 9+, Safari 5.1+ */
+}
+/* kanit-regular - latin */
+@font-face {
+  font-family: "Kanit";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: local("Kanit"),
+    url("/public/fonts/kanit-v12-latin-regular.woff2") format("woff2"),
+    /* Chrome 26+, Opera 23+, Firefox 39+ */
+      url("/public/fonts/kanit-v12-latin-regular.woff") format("woff"); /* Chrome 6+, Firefox 3.6+, IE 9+, Safari 5.1+ */
+}
+/* kanit-700 - latin */
+@font-face {
+  font-family: "Kanit";
+  font-style: normal;
+  font-weight: 700;
+  font-display: block;
+  src: local("Kanit"),
+    url("/public/fonts/kanit-v12-latin-700.woff2") format("woff2"),
+    /* Chrome 26+, Opera 23+, Firefox 39+ */
+      url("/public/fonts/kanit-v12-latin-700.woff") format("woff"); /* Chrome 6+, Firefox 3.6+, IE 9+, Safari 5.1+ */
+}
+
+/* nova-mono-regular - latin */
+@font-face {
+  font-family: "Nova Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: local("NovaMono"),
+    url("/public/fonts/nova-mono-v18-latin-regular.woff2") format("woff2"),
+    /* Chrome 26+, Opera 23+, Firefox 39+ */
+      url("/public/fonts/nova-mono-v18-latin-regular.woff") format("woff"); /* Chrome 6+, Firefox 3.6+, IE 9+, Safari 5.1+ */
+}
+
+body {
+  margin: 0px;
+  background: #ececec;
+  font-family: "Kanit", sans-serif;
+  font-weight: 200;
+  font-size: 16px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+h1 strong,
+h2 strong,
+h3 strong,
+h4 strong,
+h5 strong,
+h6 strong,
+h1 em,
+h2 em,
+h3 em,
+h4 em,
+h5 em,
+h6 em {
+  font-weight: 700;
+}
+
+code {
+  font-family: "Nova Mono", monospace;
+  line-break: anywhere;
+}
+
+strong {
+  font-weight: 500;
+}
+
+a {
+  color: #215144;
+}
+
+a:hover {
+  text-decoration: double;
+}
+
+header {
+  background-color: #ffffff;
+  border-bottom-width: 2px;
+  border-bottom-color: #7ba583;
+  border-bottom-style: solid;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 65ch;
+  padding-left: 1em;
+  padding-right: 1em;
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+header p {
+  flex-grow: 2;
+  text-align: center;
+  word-spacing: 0.3em;
+  color: #7ba583;
+}
+
+.contents {
+  max-width: 65ch;
+  padding-left: 1em;
+  padding-right: 1em;
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+  flex-grow: 2;
+}
+
+.contents.notfound {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.contents.contents.notfound code {
+  color: #215144;
+}
+
+.contents > h1:first-child,
+article > h1:first-child {
+  margin-bottom: 0;
+}
+
+.post-date {
+  margin-top: 0;
+  font-size: 0.8em;
+  color: #7ba583;
+}
+
+.logo-container {
+  height: 65px;
+  margin-left: 0;
+}
+
+.logo-container a {
+  width: 110px;
+}
+
+.logo-container img {
+  height: 100%;
+  width: auto;
+}
+
+footer {
+  background-color: #f8f8f8;
+  border-top: 2px solid #7ba583;
+  text-align: center;
+}
+
+footer div {
+  font-weight: 900;
+  line-height: 3em;
+  color: #7ba583;
+}
+
+hr {
+  border-bottom: 3px double #7ba583;
+  border-top: 0;
+  border-right: 0;
+  border-left: 0;
+}
+
+.pagination-buttons {
+  display: flex;
+  justify-content: space-between;
+  padding: 0em 15%;
+  font-family: "Nova Mono", monospace;
+  margin-bottom: 1.5em;
+}
+
+.pagination-buttons a {
+  text-decoration: none;
+  border: 2px solid;
+  background: #fff;
+  text-align: center;
+  border-radius: 2px;
+  padding: 0.25em;
+}
+
+.pagination-buttons a:hover {
+  color: white;
+  background: #215144;
+  border-color: #7ba583;
+  transition: all 0.5s ease;
+}
+
+.contents img {
+  max-width: 100%;
+  height: auto;
+}
+
+p > code {
+  background: #2e3440;
+  color: #d8dee9;
+  white-space: nowrap;
+  font-size: 0.8em;
+}
+
+@media only screen and (min-width: 651px) {
+  body {
+    font-size: 18px;
+  }
+
+  header {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .logo-container {
+    display: block;
+    height: 100px;
+    margin-bottom: 0.25em;
+  }
+
+  pre code.hljs {
+    font-size: 14px;
+  }
+}
+
+/**
+ * Lightly modified version of the Nord theme below here.
+ */
+
+pre code.hljs {
+  display: block;
+  overflow-x: auto;
+  padding: 1em;
+  font-family: "Nova Mono";
+  font-size: 0.8em;
+}
+code.hljs {
+  padding: 3px 5px;
+}
+.hljs {
+  background: #2e3440;
+}
+.hljs,
+.hljs-subst {
+  color: #d8dee9;
+}
+.hljs-selector-tag {
+  color: #81a1c1;
+}
+.hljs-selector-id {
+  color: #8fbcbb;
+  font-weight: 700;
+}
+.hljs-selector-attr,
+.hljs-selector-class {
+  color: #8fbcbb;
+}
+.hljs-property,
+.hljs-selector-pseudo {
+  color: #88c0d0;
+}
+.hljs-addition {
+  background-color: rgba(163, 190, 140, 0.5);
+}
+.hljs-deletion {
+  background-color: rgba(191, 97, 106, 0.5);
+}
+.hljs-built_in,
+.hljs-class,
+.hljs-type {
+  color: #8fbcbb;
+}
+.hljs-function,
+.hljs-function > .hljs-title,
+.hljs-title.hljs-function {
+  color: #88c0d0;
+}
+.hljs-keyword,
+.hljs-literal,
+.hljs-symbol {
+  color: #81a1c1;
+}
+.hljs-number {
+  color: #b48ead;
+}
+.hljs-regexp {
+  color: #ebcb8b;
+}
+.hljs-string {
+  color: #a3be8c;
+}
+.hljs-title {
+  color: #8fbcbb;
+}
+.hljs-params {
+  color: #d8dee9;
+}
+.hljs-bullet {
+  color: #81a1c1;
+}
+.hljs-code {
+  color: #8fbcbb;
+}
+.hljs-emphasis {
+  font-style: italic;
+}
+.hljs-formula {
+  color: #8fbcbb;
+}
+.hljs-strong {
+  font-weight: 700;
+}
+.hljs-link:hover {
+  text-decoration: underline;
+}
+.hljs-comment,
+.hljs-quote {
+  color: #4c566a;
+}
+.hljs-doctag {
+  color: #8fbcbb;
+}
+.hljs-meta,
+.hljs-meta .hljs-keyword {
+  color: #5e81ac;
+}
+.hljs-meta .hljs-string {
+  color: #a3be8c;
+}
+.hljs-attr {
+  color: #8fbcbb;
+}
+.hljs-attribute {
+  color: #d8dee9;
+}
+.hljs-name {
+  color: #81a1c1;
+}
+.hljs-section {
+  color: #88c0d0;
+}
+.hljs-tag {
+  color: #81a1c1;
+}
+.hljs-template-variable,
+.hljs-variable {
+  color: #d8dee9;
+}
+.hljs-template-tag {
+  color: #5e81ac;
+}
+.language-abnf .hljs-attribute {
+  color: #88c0d0;
+}
+.language-abnf .hljs-symbol {
+  color: #ebcb8b;
+}
+.language-apache .hljs-attribute {
+  color: #88c0d0;
+}
+.language-apache .hljs-section {
+  color: #81a1c1;
+}
+.language-arduino .hljs-built_in {
+  color: #88c0d0;
+}
+.language-aspectj .hljs-meta {
+  color: #d08770;
+}
+.language-aspectj > .hljs-title {
+  color: #88c0d0;
+}
+.language-bnf .hljs-attribute {
+  color: #8fbcbb;
+}
+.language-clojure .hljs-name {
+  color: #88c0d0;
+}
+.language-clojure .hljs-symbol {
+  color: #ebcb8b;
+}
+.language-coq .hljs-built_in {
+  color: #88c0d0;
+}
+.language-cpp .hljs-meta .hljs-string {
+  color: #8fbcbb;
+}
+.language-css .hljs-built_in {
+  color: #88c0d0;
+}
+.language-css .hljs-keyword {
+  color: #d08770;
+}
+.language-diff .hljs-meta,
+.language-ebnf .hljs-attribute {
+  color: #8fbcbb;
+}
+.language-glsl .hljs-built_in {
+  color: #88c0d0;
+}
+.language-groovy .hljs-meta:not(:first-child),
+.language-haxe .hljs-meta,
+.language-java .hljs-meta {
+  color: #d08770;
+}
+.language-ldif .hljs-attribute {
+  color: #8fbcbb;
+}
+.language-lisp .hljs-name,
+.language-lua .hljs-built_in,
+.language-moonscript .hljs-built_in,
+.language-nginx .hljs-attribute {
+  color: #88c0d0;
+}
+.language-nginx .hljs-section {
+  color: #5e81ac;
+}
+.language-pf .hljs-built_in,
+.language-processing .hljs-built_in {
+  color: #88c0d0;
+}
+.language-scss .hljs-keyword,
+.language-stylus .hljs-keyword {
+  color: #81a1c1;
+}
+.language-swift .hljs-meta {
+  color: #d08770;
+}
+.language-vim .hljs-built_in {
+  color: #88c0d0;
+  font-style: italic;
+}
+.language-yaml .hljs-meta {
+  color: #d08770;
+}
