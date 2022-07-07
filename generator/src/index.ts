@@ -206,7 +206,11 @@ function getCombinedPostsHTML(
  */
 function getMarkdownBasedHTML(markdownContents: string[]): string[] {
   const htmlFromMarkdown = markdownContents.map((markdown) =>
-    marked.parse(markdown).replaceAll("&amp;", "&").trimEnd()
+    marked
+      .parse(markdown)
+      .replaceAll("&amp;", "&")
+      .replaceAll("&quot;", '"')
+      .trimEnd()
   );
 
   return addSyntaxHighlightingHTML(htmlFromMarkdown);
