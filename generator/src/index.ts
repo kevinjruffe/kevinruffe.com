@@ -128,6 +128,28 @@ function addSyntaxHighlightingHTML(htmlContents: string[]): string[] {
 }
 
 /**
+ * Using the template, it builds the HTML contents for a blog index page.
+ */
+function getIndexPageHTML(
+  currentPost: number,
+  postContentsAsHTML: string[],
+  css: string,
+  template: string
+): string {
+  return template
+    .replace("TITLE_TO_REPLACE", "Blog")
+    .replace(
+      "<!-- CONTENTS -->",
+      getCombinedPostsHTML(
+        postContentsAsHTML,
+        currentPost,
+        postContentsAsHTML.length
+      ) + getPaginationButtonHTML(currentPost, postContentsAsHTML.length)
+    )
+    .replace("/* STYLES */", css);
+}
+
+/**
  * Given the template, CSS, the post titles and the post contents as HTML, this
  * will build the complete blog HTML files.
  */
@@ -149,23 +171,22 @@ async function generateBlogFromTemplateTitlesAndContents(
       );
 
       fileWrites.push(
-        $`echo ${template
-          .replace("<!-- CONTENTS -->", htmlContent)
-          .replace("/* STYLES */", css)} > blog/built/${postTitles[index]}.html`
+        $`echo ${getPostPageHTML(
+          postTitles[index],
+          htmlContent,
+          css,
+          template
+        )} > blog/built/${postTitles[index]}.html`
       );
 
       if (noIndexPageNeeded) return fileWrites;
 
-      const fileContents = template
-        .replace(
-          "<!-- CONTENTS -->",
-          getCombinedPostsHTML(
-            postContentsAsHTML,
-            ordinalIndex,
-            postContentsAsHTML.length
-          ) + getPaginationButtonHTML(ordinalIndex, postContentsAsHTML.length)
-        )
-        .replace("/* STYLES */", css);
+      const fileContents = getIndexPageHTML(
+        ordinalIndex,
+        postContentsAsHTML,
+        css,
+        template
+      );
 
       fileWrites.push(
         $`echo ${fileContents} > blog/built/page/${Math.ceil(
@@ -210,10 +231,23 @@ function getMarkdownBasedHTML(markdownContents: string[]): string[] {
       .parse(markdown)
       .replaceAll("&amp;", "&")
       .replaceAll("&quot;", '"')
+      .replaceAll("&#39;", "'")
       .trimEnd()
   );
 
   return addSyntaxHighlightingHTML(htmlFromMarkdown);
+}
+
+/**
+ * Get HTML for pagination buttons on index pages.
+ */
+function getPaginationButtonHTML(
+  ordinalIndex: number,
+  listLength: number
+): string {
+  return `<div class="pagination-buttons">${getPreviousButtonHTML(
+    ordinalIndex
+  )}${getNextButtonHTML(ordinalIndex, listLength)}</div>`;
 }
 
 /**
@@ -231,15 +265,25 @@ async function getPostNamesAndContents(): Promise<[string[], string[]]> {
 }
 
 /**
- * Get HTML for pagination buttons on index pages.
+ * Using the template, it builds the final HTML contents for a single blog
+ * post page.
  */
-function getPaginationButtonHTML(
-  ordinalIndex: number,
-  listLength: number
+function getPostPageHTML(
+  postTitle: string,
+  postContent: string,
+  css: string,
+  template: string
 ): string {
-  return `<div class="pagination-buttons">${getPreviousButtonHTML(
-    ordinalIndex
-  )}${getNextButtonHTML(ordinalIndex, listLength)}</div>`;
+  const regex = new RegExp(
+    `(?<=<a href="\\/${postTitle}">)[\\S\\s]*?(?=<\\/a>)`
+  );
+
+  const titleToUse = (postContent.match(regex) ?? [])[0] ?? "Blog";
+
+  return template
+    .replaceAll("TITLE_TO_REPLACE", titleToUse)
+    .replace("<!-- CONTENTS -->", postContent)
+    .replace("/* STYLES */", css);
 }
 
 /**
