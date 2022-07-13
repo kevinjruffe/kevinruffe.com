@@ -1,5 +1,6 @@
 import { $, chalk, fs, ProcessPromise } from "zx";
 import { marked } from "marked";
+import { ForegroundColor, Modifiers } from "chalk";
 import highlight from "highlight.js/lib/common";
 
 /*
@@ -26,7 +27,7 @@ $.verbose = false;
 |
 */
 
-logStep("STARTING THE SITE BUILD", true);
+logStep("STARTING THE SITE BUILD", "green");
 
 // Create build directories, read HTML template, read and minify CSS, and read
 // source Markdown files.
@@ -80,7 +81,7 @@ await Promise.all([
   ),
 ]);
 
-logStep("SITE BUILD COMPLETE!\n", true);
+logStep("SITE BUILD COMPLETE!\n", "green");
 
 /*
 |-------------------------------------------------------------------------------
@@ -332,6 +333,8 @@ function handleFailure(message: string, err: unknown): never {
 /**
  * Log a step in the build process.
  */
-function logStep(message: string, useColor = false): void {
-  console.log(`\n${chalk[useColor ? "green" : "reset"](message)}`);
+function logStep(message: string, color = "reset"): void {
+  console.log(
+    `\n${chalk[color as typeof ForegroundColor | typeof Modifiers](message)}`
+  );
 }
