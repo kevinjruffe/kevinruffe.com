@@ -2,6 +2,7 @@ import { $, chalk, fs, ProcessPromise } from "zx";
 import { marked } from "marked";
 import { ForegroundColor, Modifiers } from "chalk";
 import highlight from "highlight.js/lib/common";
+import CleanCSS from "clean-css";
 
 /*
 |-------------------------------------------------------------------------------
@@ -34,23 +35,28 @@ logStep("STARTING THE SITE BUILD", "green");
 logStep(
   "Reading template and blog source files while generating necessary directories."
 );
-const [template, { stdout: css }, [srcPostFileNames, srcPostContents]] =
-  await Promise.all([
-    fs.readFile("blog/template.html", "utf8"),
-    $`cleancss blog/style.css`,
-    getPostNamesAndContents(),
-    $`mkdir -p blog/built/page`,
-    $`mkdir -p blog/built/public/images`,
-  ]).catch((err) => handleFailure("Failed while trying to read files!", err));
+const [
+  template,
+  notFoundTemplate,
+  { styles: css },
+  [srcPostFileNames, srcPostContents],
+] = await Promise.all([
+  fs.readFile("blog/template.html", "utf8"),
+  fs.readFile("blog/404.html", "utf8"),
+  new CleanCSS({ returnPromise: true }).minify(["blog/style.css"]),
+  getPostNamesAndContents(),
+  fs.mkdirp("blog/built/page"),
+  fs.mkdirp("blog/built/public/images"),
+]).catch((err) => handleFailure("Failed while trying to read files!", err));
 
 // Now that needed directories are in place, copy pre-built files.
 logStep("Copying pre-built files over to `built` directory.");
 await Promise.all([
-  $`cp -R blog/fonts blog/built/public/fonts`,
-  $`cp blog/favicon.ico blog/built/public/favicon.ico`,
+  fs.copy("blog/fonts", "blog/built/public/fonts"),
+  fs.copy("blog/favicon.ico", "blog/built/public/favicon.ico"),
   $`cp blog/*.webp blog/built/public/`,
-  $`cp -R blog/images blog/built/public/`,
-  $`cp blog/404.html blog/built/404.html`,
+  fs.copy("blog/images", "blog/built/public"),
+  fs.copy("blog/404.html", "blog/built/404.html"),
 ]).catch((err) => handleFailure("Failed while copying pre-built files", err));
 
 let postTitles: string[], postContentsAsHTML: string[];
@@ -72,7 +78,10 @@ try {
 // ALso, inject minified CSS into 404 page.
 logStep("Finalizing HTML files for blog.");
 await Promise.all([
-  addCSSTo404Page(css),
+  fs.writeFile(
+    "blog/built/404.html",
+    notFoundTemplate.replace("/* STYLES */", css)
+  ),
   generateBlogFromTemplateTitlesAndContents(
     template,
     css,
@@ -91,18 +100,6 @@ logStep("SITE BUILD COMPLETE!\n", "green");
 | Nicely packaging some of the logic used in the main script.
 |
 */
-
-/**
- * Injects minified CSS into 404 page.
- */
-async function addCSSTo404Page(css: string): Promise<void> {
-  const notFoundContents = await fs.readFile("blog/built/404.html", "utf8");
-
-  await fs.writeFile(
-    "blog/built/404.html",
-    notFoundContents.replace("/* STYLES */", css)
-  );
-}
 
 /**
  * Enhance HTML with markup that enables code syntax highlighting.
@@ -172,12 +169,10 @@ async function generateBlogFromTemplateTitlesAndContents(
       );
 
       fileWrites.push(
-        $`echo ${getPostPageHTML(
-          postTitles[index],
-          htmlContent,
-          css,
-          template
-        )} > blog/built/${postTitles[index]}.html`
+        fs.writeFile(
+          `blog/built/${postTitles[index]}.html`,
+          getPostPageHTML(postTitles[index], htmlContent, css, template)
+        )
       );
 
       if (noIndexPageNeeded) return fileWrites;
@@ -190,17 +185,18 @@ async function generateBlogFromTemplateTitlesAndContents(
       );
 
       fileWrites.push(
-        $`echo ${fileContents} > blog/built/page/${Math.ceil(
-          ordinalIndex / POSTS_PER_PAGE
-        )}.html`
+        fs.writeFile(
+          `blog/built/page/${Math.ceil(ordinalIndex / POSTS_PER_PAGE)}.html`,
+          fileContents
+        )
       );
 
       if (firstIndexPageNeeded) {
-        fileWrites.push($`echo ${fileContents} > blog/built/index.html`);
+        fileWrites.push(fs.writeFile("blog/built/index.html", fileContents));
       }
 
       return fileWrites;
-    }, [] as ProcessPromise[])
+    }, [] as Promise<void>[])
   );
 }
 
