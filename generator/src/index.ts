@@ -1,4 +1,4 @@
-import { $, chalk, fs, ProcessPromise } from "zx";
+import { $, chalk, fs } from "zx";
 import { marked } from "marked";
 import { ForegroundColor, Modifiers } from "chalk";
 import highlight from "highlight.js/lib/common";
