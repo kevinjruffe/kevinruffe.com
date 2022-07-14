@@ -35,60 +35,41 @@ logStep("STARTING THE SITE BUILD", "green");
 logStep(
   "Reading template and blog source files while generating necessary directories."
 );
-const [
-  template,
-  notFoundTemplate,
-  { styles: css },
-  [srcPostFileNames, srcPostContents],
-] = await Promise.all([
-  fs.readFile("blog/template.html", "utf8"),
-  fs.readFile("blog/404.html", "utf8"),
-  new CleanCSS({ returnPromise: true }).minify(["blog/style.css"]),
-  getPostNamesAndContents(),
-  fs.mkdirp("blog/built/page"),
-  fs.mkdirp("blog/built/public/images"),
-]).catch((err) => handleFailure("Failed while trying to read files!", err));
+const [[template, notFoundTemplate], css, [srcPostFileNames, srcPostContents]] =
+  await Promise.all([
+    readTemplateFiles(),
+    readAndMinifiyCSS(),
+    readPostNamesAndContents(),
+    createBuildOutputDirs(),
+  ]).catch((err) =>
+    handleFailure(
+      "Failed while trying to read files or create directories!",
+      err
+    )
+  );
 
 // Now that needed directories are in place, copy pre-built files.
 logStep("Copying pre-built files over to `built` directory.");
-await Promise.all([
-  fs.copy("blog/fonts", "blog/built/public/fonts"),
-  fs.copy("blog/favicon.ico", "blog/built/public/favicon.ico"),
-  $`cp blog/*.webp blog/built/public/`,
-  fs.copy("blog/images", "blog/built/public"),
-  fs.copy("blog/404.html", "blog/built/404.html"),
-]).catch((err) => handleFailure("Failed while copying pre-built files", err));
+await copyPreBuiltFilesOver();
 
-let postTitles: string[], postContentsAsHTML: string[];
-try {
-  // Get post title from filenames.
-  logStep("Getting post titles from filenames.");
-  postTitles = getTitlesFromFileNames(srcPostFileNames);
-  // Get HTML from Markdown files.
-  logStep("Getting HTML contents from Markdown source.");
-  postContentsAsHTML = getMarkdownBasedHTML(srcPostContents);
-} catch (err) {
-  handleFailure(
-    "Failed while gettings post titles or while converting Markdown to HTML!",
-    err
-  );
-}
+// Get post title from filenames.
+logStep("Getting post titles from filenames.");
+const postTitles = getTitlesFromFileNames(srcPostFileNames);
+
+// Get HTML from Markdown files.
+logStep("Getting HTML contents from Markdown source.");
+const postContentsAsHTML = getMarkdownBasedHTML(srcPostContents);
 
 // Now that all necessary data is in memory, write blog site to built directory.
 // ALso, inject minified CSS into 404 page.
 logStep("Finalizing HTML files for blog.");
-await Promise.all([
-  fs.writeFile(
-    "blog/built/404.html",
-    notFoundTemplate.replace("/* STYLES */", css)
-  ),
-  generateBlogFromTemplateTitlesAndContents(
-    template,
-    css,
-    postTitles,
-    postContentsAsHTML
-  ),
-]);
+await generateBlogFromTemplatesTitlesAndContents(
+  template,
+  notFoundTemplate,
+  css,
+  postTitles,
+  postContentsAsHTML
+);
 
 logStep("SITE BUILD COMPLETE!\n", "green");
 
@@ -126,6 +107,31 @@ function addSyntaxHighlightingHTML(htmlContents: string[]): string[] {
 }
 
 /**
+ * Copy pre-built files over to `built` directory.
+ */
+async function copyPreBuiltFilesOver(): Promise<void> {
+  await Promise.all([
+    fs.copy("blog/fonts", "blog/built/public/fonts"),
+    fs.copy("blog/favicon.ico", "blog/built/public/favicon.ico"),
+    $`cp blog/*.webp blog/built/public/`,
+    fs.copy("blog/images", "blog/built/public"),
+    fs.copy("blog/404.html", "blog/built/404.html"),
+  ]).catch((err) =>
+    handleFailure("Failed while copying pre-built files!", err)
+  );
+}
+
+/**
+ * Build the `built` output directories needed for the site.
+ */
+async function createBuildOutputDirs(): Promise<void> {
+  await Promise.all([
+    fs.mkdirp("blog/built/page"),
+    fs.mkdirp("blog/built/public/images"),
+  ]);
+}
+
+/**
  * Using the template, it builds the HTML contents for a blog index page.
  */
 function getIndexPageHTML(
@@ -151,14 +157,20 @@ function getIndexPageHTML(
  * Given the template, CSS, the post titles and the post contents as HTML, this
  * will build the complete blog HTML files.
  */
-async function generateBlogFromTemplateTitlesAndContents(
+async function generateBlogFromTemplatesTitlesAndContents(
   template: string,
+  notFoundTemplate: string,
   css: string,
   postTitles: string[],
   postContentsAsHTML: string[]
 ): Promise<void> {
-  await Promise.all(
-    postContentsAsHTML.reduce((fileWrites, htmlContent, index) => {
+  const notFoundTemplateWithCSSAdded = fs.writeFile(
+    "blog/built/404.html",
+    notFoundTemplate.replace("/* STYLES */", css)
+  );
+
+  const allBlogPagesAndIndexPages = postContentsAsHTML.reduce(
+    (fileWrites, htmlContent, index) => {
       const ordinalIndex = index + 1;
       const firstIndexPageNeeded =
         ordinalIndex === POSTS_PER_PAGE ||
@@ -196,8 +208,14 @@ async function generateBlogFromTemplateTitlesAndContents(
       }
 
       return fileWrites;
-    }, [] as Promise<void>[])
+    },
+    [] as Promise<void>[]
   );
+
+  await Promise.all([
+    notFoundTemplateWithCSSAdded,
+    allBlogPagesAndIndexPages,
+  ]).catch((err) => handleFailure("Failed while generating blog files!", err));
 }
 
 /**
@@ -223,16 +241,19 @@ function getCombinedPostsHTML(
  * Gets HTML contents from Markdown contents.
  */
 function getMarkdownBasedHTML(markdownContents: string[]): string[] {
-  const htmlFromMarkdown = markdownContents.map((markdown) =>
-    marked
-      .parse(markdown)
-      .replaceAll("&amp;", "&")
-      .replaceAll("&quot;", '"')
-      .replaceAll("&#39;", "'")
-      .trimEnd()
-  );
-
-  return addSyntaxHighlightingHTML(htmlFromMarkdown);
+  try {
+    const htmlFromMarkdown = markdownContents.map((markdown) =>
+      marked
+        .parse(markdown)
+        .replaceAll("&amp;", "&")
+        .replaceAll("&quot;", '"')
+        .replaceAll("&#39;", "'")
+        .trimEnd()
+    );
+    return addSyntaxHighlightingHTML(htmlFromMarkdown);
+  } catch (err) {
+    handleFailure("Failed to parse Markdown!", err);
+  }
 }
 
 /**
@@ -245,20 +266,6 @@ function getPaginationButtonHTML(
   return `<div class="pagination-buttons">${getPreviousButtonHTML(
     ordinalIndex
   )}${getNextButtonHTML(ordinalIndex, listLength)}</div>`;
-}
-
-/**
- * Gets blog post names and contents.
- */
-async function getPostNamesAndContents(): Promise<[string[], string[]]> {
-  // Reverse names to put newest posts first.
-  const names = await fs.readdir("blog/src").then((list) => list.reverse());
-
-  const contents = await Promise.all(
-    names.map((fileName) => fs.readFile(`blog/src/${fileName}`, "utf8"))
-  );
-
-  return [names, contents];
 }
 
 /**
@@ -309,20 +316,24 @@ function getPreviousButtonHTML(ordinalIndex: number): string {
  * Gets blog post titles from blog post filenames.
  */
 function getTitlesFromFileNames(fileNames: string[]): string[] {
-  return fileNames.map((fileName) => {
-    const title = fileName.split("_").at(-1)?.replace(".md", "");
+  try {
+    return fileNames.map((fileName) => {
+      const title = fileName.split("_").at(-1)?.replace(".md", "");
 
-    if (!title) throw new Error("Invalid filename format encountered.");
+      if (!title) throw new Error("Invalid filename format encountered.");
 
-    return title;
-  });
+      return title;
+    });
+  } catch (err) {
+    handleFailure("Failed while getting post titles from filenames!", err);
+  }
 }
 
 /**
  * Log and exit on script error.
  */
 function handleFailure(message: string, err: unknown): never {
-  console.error(`\n${chalk.red(message)}\nERROR:${err}\n`);
+  console.error(`\n${chalk.red(message)}\n${err}\n`);
   process.exit(1);
 }
 
@@ -333,4 +344,37 @@ function logStep(message: string, color = "reset"): void {
   console.log(
     `\n${chalk[color as typeof ForegroundColor | typeof Modifiers](message)}`
   );
+}
+
+/**
+ * Reads the CSS file for the blog and minifies the contents.
+ */
+async function readAndMinifiyCSS(): Promise<string> {
+  return (
+    await new CleanCSS({ returnPromise: true }).minify(["blog/style.css"])
+  ).styles;
+}
+
+/**
+ * Gets blog post names and contents.
+ */
+async function readPostNamesAndContents(): Promise<[string[], string[]]> {
+  // Reverse names to put newest posts first.
+  const names = await fs.readdir("blog/src").then((list) => list.reverse());
+
+  const contents = await Promise.all(
+    names.map((fileName) => fs.readFile(`blog/src/${fileName}`, "utf8"))
+  );
+
+  return [names, contents];
+}
+
+/**
+ * Read the two template files: the one for blog post pages and the 404 page.
+ */
+async function readTemplateFiles(): Promise<[string, string]> {
+  return await Promise.all([
+    fs.readFile("blog/template.html", "utf8"),
+    fs.readFile("blog/404.html", "utf8"),
+  ]);
 }
