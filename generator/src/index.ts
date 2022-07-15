@@ -1,6 +1,11 @@
 import { $, chalk, fs } from "zx";
 import { marked } from "marked";
 import { ForegroundColor, Modifiers } from "chalk";
+import {
+  GeneratedPost,
+  ReadSourceBlogFilenamesAndPosts,
+  ReadTemplateFiles,
+} from "./types";
 import highlight from "highlight.js/lib/common";
 import CleanCSS from "clean-css";
 
@@ -35,41 +40,21 @@ logStep("STARTING THE SITE BUILD", "green");
 logStep(
   "Reading template and blog source files while generating necessary directories."
 );
-const [[template, notFoundTemplate], css, [srcPostFileNames, srcPostContents]] =
-  await Promise.all([
-    readTemplateFiles(),
-    readAndMinifiyCSS(),
-    readPostNamesAndContents(),
-    createBuildOutputDirs(),
-  ]).catch((err) =>
-    handleFailure(
-      "Failed while trying to read files or create directories!",
-      err
-    )
-  );
+const [templateFiles, css, postFilenamesAndContents] = await Promise.all([
+  readTemplateFiles(),
+  readAndMinifiyCSS(),
+  readPostFilenamesAndContents(),
+  createBuildOutputDirs(),
+]).catch((err) =>
+  handleFailure("Failed while trying to read files or create directories!", err)
+);
 
-// Now that needed directories are in place, copy pre-built files.
-logStep("Copying pre-built files over to `built` directory.");
-await copyPreBuiltFilesOver();
-
-// Get post title from filenames.
-logStep("Getting post titles from filenames.");
-const postTitles = getTitlesFromFileNames(srcPostFileNames);
-
-// Get HTML from Markdown files.
-logStep("Getting HTML contents from Markdown source.");
-const postContentsAsHTML = getMarkdownBasedHTML(srcPostContents);
+logStep("Transforming source material into titles and HTML content.");
+const generatedPosts = getGeneratedPosts(postFilenamesAndContents);
 
 // Now that all necessary data is in memory, write blog site to built directory.
-// ALso, inject minified CSS into 404 page.
-logStep("Finalizing HTML files for blog.");
-await generateBlogFromTemplatesTitlesAndContents(
-  template,
-  notFoundTemplate,
-  css,
-  postTitles,
-  postContentsAsHTML
-);
+logStep("Building the complete blog from generated HTML.");
+await generateBlog(templateFiles, generatedPosts, css);
 
 logStep("SITE BUILD COMPLETE!\n", "green");
 
@@ -85,25 +70,23 @@ logStep("SITE BUILD COMPLETE!\n", "green");
 /**
  * Enhance HTML with markup that enables code syntax highlighting.
  */
-function addSyntaxHighlightingHTML(htmlContents: string[]): string[] {
-  return htmlContents.map((html) => {
-    const htmlWithHighlightingClassAdded = html.replaceAll(
-      '<code class="language-',
-      '<code class="hljs language-'
-    );
+function addSyntaxHighlightingHTML(htmlContent: string): string {
+  const htmlWithHighlightingClassAdded = htmlContent.replaceAll(
+    '<code class="language-',
+    '<code class="hljs language-'
+  );
 
-    const codeBlocksInHtml = [
-      ...htmlWithHighlightingClassAdded.matchAll(
-        /(?<=<pre><code(.*)>)[\s\S]*?(?=<\/code><\/pre>)/g
-      ),
-    ].map((codeBlock) => codeBlock[0]);
+  const codeBlocksInHtml = [
+    ...htmlWithHighlightingClassAdded.matchAll(
+      /(?<=<pre><code(.*)>)[\s\S]*?(?=<\/code><\/pre>)/g
+    ),
+  ].map((codeBlock) => codeBlock[0]);
 
-    return codeBlocksInHtml.reduce(
-      (htmlPost, codeBlock) =>
-        htmlPost.replace(codeBlock, highlight.highlightAuto(codeBlock).value),
-      htmlWithHighlightingClassAdded
-    );
-  });
+  return codeBlocksInHtml.reduce(
+    (htmlPost, codeBlock) =>
+      htmlPost.replace(codeBlock, highlight.highlightAuto(codeBlock).value),
+    htmlWithHighlightingClassAdded
+  );
 }
 
 /**
@@ -115,7 +98,6 @@ async function copyPreBuiltFilesOver(): Promise<void> {
     fs.copy("blog/favicon.ico", "blog/built/public/favicon.ico"),
     $`cp blog/*.webp blog/built/public/`,
     fs.copy("blog/images", "blog/built/public"),
-    fs.copy("blog/404.html", "blog/built/404.html"),
   ]).catch((err) =>
     handleFailure("Failed while copying pre-built files!", err)
   );
@@ -132,58 +114,61 @@ async function createBuildOutputDirs(): Promise<void> {
 }
 
 /**
- * Using the template, it builds the HTML contents for a blog index page.
+ * Generate the HTML 404 page from template and CSS file.
  */
-function getIndexPageHTML(
-  currentPost: number,
-  postContentsAsHTML: string[],
+async function generate404Page(
   css: string,
-  template: string
-): string {
-  return template
-    .replace("TITLE_TO_REPLACE", "Blog")
-    .replace(
-      "<!-- CONTENTS -->",
-      getCombinedPostsHTML(
-        postContentsAsHTML,
-        currentPost,
-        postContentsAsHTML.length
-      ) + getPaginationButtonHTML(currentPost, postContentsAsHTML.length)
-    )
-    .replace("/* STYLES */", css);
+  notFoundTemplate: ReadTemplateFiles["notFoundTemplate"]
+): Promise<void> {
+  try {
+    await fs.writeFile(
+      "blog/built/404.html",
+      notFoundTemplate.replace("/* STYLES */", css)
+    );
+  } catch (err) {
+    handleFailure("Failed while generating 404 page!", err);
+  }
 }
 
 /**
  * Given the template, CSS, the post titles and the post contents as HTML, this
  * will build the complete blog HTML files.
  */
-async function generateBlogFromTemplatesTitlesAndContents(
-  template: string,
-  notFoundTemplate: string,
-  css: string,
-  postTitles: string[],
-  postContentsAsHTML: string[]
+async function generateBlog(
+  templateFiles: ReadTemplateFiles,
+  generatedPosts: GeneratedPost[],
+  css: string
 ): Promise<void> {
-  const notFoundTemplateWithCSSAdded = fs.writeFile(
-    "blog/built/404.html",
-    notFoundTemplate.replace("/* STYLES */", css)
-  );
+  await Promise.all([
+    copyPreBuiltFilesOver(),
+    generate404Page(css, templateFiles.notFoundTemplate),
+    generatePostPages(css, generatedPosts, templateFiles.pageTemplate),
+  ]);
+}
 
-  const allBlogPagesAndIndexPages = postContentsAsHTML.reduce(
-    (fileWrites, htmlContent, index) => {
+/**
+ * Generate the blog post pages from the template, HTML contents and CSS.
+ */
+async function generatePostPages(
+  css: string,
+  generatedPosts: GeneratedPost[],
+  pageTemplate: ReadTemplateFiles["pageTemplate"]
+): Promise<void> {
+  try {
+    generatedPosts.reduce((fileWrites, post, index) => {
       const ordinalIndex = index + 1;
       const firstIndexPageNeeded =
         ordinalIndex === POSTS_PER_PAGE ||
-        ordinalIndex === postContentsAsHTML.length;
+        ordinalIndex === generatedPosts.length;
       const noIndexPageNeeded = !(
         ordinalIndex % POSTS_PER_PAGE === 0 ||
-        ordinalIndex === postContentsAsHTML.length
+        ordinalIndex === generatedPosts.length
       );
 
       fileWrites.push(
         fs.writeFile(
-          `blog/built/${postTitles[index]}.html`,
-          getPostPageHTML(postTitles[index], htmlContent, css, template)
+          `blog/built/${post.path}.html`,
+          getPostPageHTML(post, css, pageTemplate)
         )
       );
 
@@ -191,9 +176,9 @@ async function generateBlogFromTemplatesTitlesAndContents(
 
       const fileContents = getIndexPageHTML(
         ordinalIndex,
-        postContentsAsHTML,
+        generatedPosts,
         css,
-        template
+        pageTemplate
       );
 
       fileWrites.push(
@@ -208,52 +193,99 @@ async function generateBlogFromTemplatesTitlesAndContents(
       }
 
       return fileWrites;
-    },
-    [] as Promise<void>[]
-  );
-
-  await Promise.all([
-    notFoundTemplateWithCSSAdded,
-    allBlogPagesAndIndexPages,
-  ]).catch((err) => handleFailure("Failed while generating blog files!", err));
+    }, [] as Promise<void>[]);
+  } catch (err) {
+    handleFailure("Failed while generating blog post pages!", err);
+  }
 }
 
 /**
  * Get the HTML for combined posts. This is for what I'm calling "index pages".
  */
 function getCombinedPostsHTML(
-  postContentsAsHTML: string[],
-  ordinalIndex: number,
-  listLength: number
+  posts: GeneratedPost[],
+  ordinalIndex: number
 ): string {
+  const listLength = posts.length;
+
   const postsToGoBackInList =
     ordinalIndex === listLength && listLength % POSTS_PER_PAGE !== 0
       ? listLength % POSTS_PER_PAGE
       : POSTS_PER_PAGE;
 
-  return postContentsAsHTML
+  return posts
     .slice(ordinalIndex - postsToGoBackInList, ordinalIndex)
-    .map((html) => `<article>${html}</article>`)
+    .map((post) => `<article>${post.content}</article>`)
     .join("<hr />");
+}
+
+/**
+ * Creates blog post path's and URL from filenames and HTML contents.
+ */
+function getGeneratedPosts(
+  postFilenamesAndContents: ReadSourceBlogFilenamesAndPosts
+): GeneratedPost[] {
+  return postFilenamesAndContents.srcPostFilenames.map((filename, index) => {
+    const content = getMarkdownBasedHTML(
+      postFilenamesAndContents.srcPostContents[index]
+    );
+
+    const path = getPostUrlPathFromFilename(filename);
+
+    return {
+      content,
+      path,
+      title: getPostTitleFromPathAndContents(path, content),
+    };
+  });
+}
+
+/**
+ * Using the template, it builds the HTML contents for a blog index page.
+ */
+function getIndexPageHTML(
+  currentPost: number,
+  posts: GeneratedPost[],
+  css: string,
+  template: string
+): string {
+  return template
+    .replace("TITLE_TO_REPLACE", "Blog")
+    .replace(
+      "<!-- CONTENTS -->",
+      getCombinedPostsHTML(posts, currentPost) +
+        getPaginationButtonHTML(currentPost, posts.length)
+    )
+    .replace("/* STYLES */", css);
 }
 
 /**
  * Gets HTML contents from Markdown contents.
  */
-function getMarkdownBasedHTML(markdownContents: string[]): string[] {
+function getMarkdownBasedHTML(markdownContent: string): string {
   try {
-    const htmlFromMarkdown = markdownContents.map((markdown) =>
-      marked
-        .parse(markdown)
-        .replaceAll("&amp;", "&")
-        .replaceAll("&quot;", '"')
-        .replaceAll("&#39;", "'")
-        .trimEnd()
-    );
+    const htmlFromMarkdown = marked
+      .parse(markdownContent)
+      .replaceAll("&amp;", "&")
+      .replaceAll("&quot;", '"')
+      .replaceAll("&#39;", "'")
+      .trimEnd();
+
     return addSyntaxHighlightingHTML(htmlFromMarkdown);
   } catch (err) {
     handleFailure("Failed to parse Markdown!", err);
   }
+}
+
+/**
+ * Gets HTML for `Next` button on index pages.
+ */
+function getNextButtonHTML(ordinalIndex: number, listLength: number): string {
+  const visibility = ordinalIndex !== listLength ? "visible" : "hidden";
+
+  return `<a style="visibility: ${visibility}" href="/page/${
+    (ordinalIndex + POSTS_PER_PAGE) / POSTS_PER_PAGE
+  }">&gt;&gt;&gt;</a>`;
 }
 
 /**
@@ -273,32 +305,43 @@ function getPaginationButtonHTML(
  * post page.
  */
 function getPostPageHTML(
-  postTitle: string,
-  postContent: string,
+  post: GeneratedPost,
   css: string,
   template: string
 ): string {
-  const regex = new RegExp(
-    `(?<=<a href="\\/${postTitle}">)[\\S\\s]*?(?=<\\/a>)`
-  );
-
-  const titleToUse = (postContent.match(regex) ?? [])[0] ?? "Blog";
-
   return template
-    .replaceAll("TITLE_TO_REPLACE", titleToUse)
-    .replace("<!-- CONTENTS -->", postContent)
+    .replaceAll("TITLE_TO_REPLACE", post.title)
+    .replace("<!-- CONTENTS -->", post.content)
     .replace("/* STYLES */", css);
 }
 
 /**
- * Gets HTML for `Next` button on index pages.
+ * Get the GeneratedPost title from the post's path and contents.
  */
-function getNextButtonHTML(ordinalIndex: number, listLength: number): string {
-  const visibility = ordinalIndex !== listLength ? "visible" : "hidden";
+function getPostTitleFromPathAndContents(
+  postPath: GeneratedPost["path"],
+  postContent: GeneratedPost["content"]
+): GeneratedPost["title"] {
+  const regex = new RegExp(
+    `(?<=<a href="\\/${postPath}">)[\\S\\s]*?(?=<\\/a>)`
+  );
 
-  return `<a style="visibility: ${visibility}" href="/page/${
-    (ordinalIndex + POSTS_PER_PAGE) / POSTS_PER_PAGE
-  }">&gt;&gt;&gt;</a>`;
+  return (postContent.match(regex) ?? [])[0] ?? "Blog";
+}
+
+/**
+ * Gets blog post URL path from blog post filename.
+ */
+function getPostUrlPathFromFilename(filename: string): string {
+  try {
+    const path = filename.split("_").at(-1)?.replace(".md", "");
+
+    if (!path) throw new Error("Invalid filename format encountered.");
+
+    return path;
+  } catch (err) {
+    handleFailure("Failed while getting post titles from filenames!", err);
+  }
 }
 
 /**
@@ -310,23 +353,6 @@ function getPreviousButtonHTML(ordinalIndex: number): string {
   return `<a style="visibility: ${visibility}" href="/page/${Math.ceil(
     (ordinalIndex - POSTS_PER_PAGE) / POSTS_PER_PAGE
   )}">&lt;&lt;&lt;</a>`;
-}
-
-/**
- * Gets blog post titles from blog post filenames.
- */
-function getTitlesFromFileNames(fileNames: string[]): string[] {
-  try {
-    return fileNames.map((fileName) => {
-      const title = fileName.split("_").at(-1)?.replace(".md", "");
-
-      if (!title) throw new Error("Invalid filename format encountered.");
-
-      return title;
-    });
-  } catch (err) {
-    handleFailure("Failed while getting post titles from filenames!", err);
-  }
 }
 
 /**
@@ -358,23 +384,29 @@ async function readAndMinifiyCSS(): Promise<string> {
 /**
  * Gets blog post names and contents.
  */
-async function readPostNamesAndContents(): Promise<[string[], string[]]> {
+async function readPostFilenamesAndContents(): Promise<ReadSourceBlogFilenamesAndPosts> {
   // Reverse names to put newest posts first.
-  const names = await fs.readdir("blog/src").then((list) => list.reverse());
+  const srcPostFilenames = await fs
+    .readdir("blog/src")
+    .then((list) => list.reverse());
 
-  const contents = await Promise.all(
-    names.map((fileName) => fs.readFile(`blog/src/${fileName}`, "utf8"))
+  const srcPostContents = await Promise.all(
+    srcPostFilenames.map((fileName) =>
+      fs.readFile(`blog/src/${fileName}`, "utf8")
+    )
   );
 
-  return [names, contents];
+  return { srcPostFilenames, srcPostContents };
 }
 
 /**
  * Read the two template files: the one for blog post pages and the 404 page.
  */
-async function readTemplateFiles(): Promise<[string, string]> {
-  return await Promise.all([
+async function readTemplateFiles(): Promise<ReadTemplateFiles> {
+  const [pageTemplate, notFoundTemplate] = await Promise.all([
     fs.readFile("blog/template.html", "utf8"),
     fs.readFile("blog/404.html", "utf8"),
   ]);
+
+  return { pageTemplate, notFoundTemplate };
 }
