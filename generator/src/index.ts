@@ -159,7 +159,8 @@ async function generatePostPages(
       const ordinalIndex = index + 1;
       const firstIndexPageNeeded =
         ordinalIndex === POSTS_PER_PAGE ||
-        ordinalIndex === generatedPosts.length;
+        (ordinalIndex === generatedPosts.length &&
+          generatedPosts.length < POSTS_PER_PAGE);
       const noIndexPageNeeded = !(
         ordinalIndex % POSTS_PER_PAGE === 0 ||
         ordinalIndex === generatedPosts.length
