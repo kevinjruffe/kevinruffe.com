@@ -25,11 +25,11 @@
   "devDependencies": {
     "@tsconfig/node16": "^1.0.3",
     "@types/clean-css": "^4.2.5",
-    "@types/marked": "^4.0.3",
-    "@types/node": "^18.0.6",
-    "@typescript-eslint/eslint-plugin": "^5.30.7",
-    "@typescript-eslint/parser": "^5.30.7",
-    "eslint": "^8.20.0",
+    "@types/marked": "^4.0.5",
+    "@types/node": "^18.7.8",
+    "@typescript-eslint/eslint-plugin": "^5.33.1",
+    "@typescript-eslint/parser": "^5.33.1",
+    "eslint": "^8.22.0",
     "http-server": "^14.1.1",
     "prettier": "^2.7.1",
     "typescript": "^4.7.4"
@@ -37,7 +37,7 @@
   "dependencies": {
     "clean-css": "^5.3.1",
     "highlight.js": "^11.6.0",
-    "marked": "^4.0.17",
-    "zx": "^7.0.1"
+    "marked": "^4.0.18",
+    "zx": "^7.0.8"
   }
 }
