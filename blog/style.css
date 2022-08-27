@@ -81,6 +81,12 @@ code {
   line-break: anywhere;
 }
 
+blockquote {
+  color: #215144;
+  font-style: italic;
+  padding: 0 0.5em;
+}
+
 strong {
   font-weight: 500;
 }
