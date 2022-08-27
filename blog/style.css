@@ -84,7 +84,8 @@ code {
 blockquote {
   color: #215144;
   font-style: italic;
-  padding: 0 0.5em;
+  margin-inline-start: 1em;
+  margin-inline-end: 1em;
 }
 
 strong {
@@ -247,6 +248,11 @@ p > code {
 
   pre code.hljs {
     font-size: 14px;
+  }
+
+  blockquote {
+    margin-inline-start: 2em;
+    margin-inline-end: 2em;
   }
 }
 
