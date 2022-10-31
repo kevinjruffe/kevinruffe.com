@@ -97,7 +97,7 @@ async function copyPreBuiltFilesOver(): Promise<void> {
     fs.copy("blog/fonts", "blog/built/public/fonts"),
     fs.copy("blog/favicon.ico", "blog/built/public/favicon.ico"),
     $`cp blog/*.webp blog/built/public/`,
-    fs.copy("blog/images", "blog/built/public"),
+    fs.copy("blog/images", "blog/built/public/images"),
   ]).catch((err) =>
     handleFailure("Failed while copying pre-built files!", err)
   );
